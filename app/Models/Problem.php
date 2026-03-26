@@ -20,6 +20,7 @@ class Problem extends Model
         'member_id', 'name', 'type', 'code', 'encounter_setting',
         'state', 'submitted_by', 'submitted_at', 'confirmed_by',
         'confirmed_at', 'resolved_by', 'resolved_at', 'lock_version',
+        'locked_by', 'locked_at', 'care_plan_id',
     ];
 
     protected function casts(): array
@@ -31,6 +32,7 @@ class Problem extends Model
             'submitted_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'resolved_at' => 'datetime',
+            'locked_at' => 'datetime',
         ];
     }
 
@@ -72,6 +74,20 @@ class Problem extends Model
     public function scopeByType($query, ProblemType $type)
     {
         return $query->where('type', $type);
+    }
+
+    public function lockedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'locked_by');
+    }
+
+    public function isLockedByAnother(?int $userId): bool
+    {
+        if (!$this->locked_by) {
+            return false;
+        }
+
+        return $this->locked_by !== $userId;
     }
 
     public function isConfirmed(): bool
