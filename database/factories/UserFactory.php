@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use Laravel\Jetstream\Features;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -39,6 +39,56 @@ class UserFactory extends Factory
             'profile_photo_path' => null,
             'current_team_id' => null,
         ];
+    }
+
+    /**
+     * Set the user's role to Admin.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Admin,
+        ]);
+    }
+
+    /**
+     * Set the user's role to Supervisor.
+     */
+    public function supervisor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Supervisor,
+        ]);
+    }
+
+    /**
+     * Set the user's role to Authorized Clinician.
+     */
+    public function authorizedClinician(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::AuthorizedClinician,
+        ]);
+    }
+
+    /**
+     * Set the user's role to Community Health Worker.
+     */
+    public function communityHealthWorker(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::CommunityHealthWorker,
+        ]);
+    }
+
+    /**
+     * Set the user's role to Compliance Officer.
+     */
+    public function complianceOfficer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::ComplianceOfficer,
+        ]);
     }
 
     /**

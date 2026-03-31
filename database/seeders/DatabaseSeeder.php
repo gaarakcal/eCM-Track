@@ -21,39 +21,52 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $testUser = User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => bcrypt('password'),
-            'role' => UserRole::Admin,
-        ]);
+        // Seed all role-based users first
+        $this->call(RoleSeeder::class);
 
-        $careManagers = User::factory(4)->create();
+        // Also keep the legacy test user for backward compatibility
+        $testUser = User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'password' => bcrypt('password'),
+                'role' => UserRole::Admin,
+            ]
+        );
+
+        // Retrieve the seeded role users for realistic data relationships
+        $admin = User::where('email', 'admin@ecmtrack.test')->first();
+        $careManager = User::where('email', 'caremanager@ecmtrack.test')->first();
+        $supervisor = User::where('email', 'supervisor@ecmtrack.test')->first();
+        $clinician = User::where('email', 'clinician@ecmtrack.test')->first();
+        $chw = User::where('email', 'chw@ecmtrack.test')->first();
+
+        $careStaff = collect([$careManager, $supervisor, $clinician, $chw])->filter();
 
         // Create members with assigned lead care managers
         $members = Member::factory(10)
             ->sequence(fn ($sequence) => [
-                'lead_care_manager' => $careManagers->random()->id,
+                'lead_care_manager' => $careStaff->random()->id,
             ])
             ->create();
 
         // One JI-blocked member
         Member::factory()->jiBlocked()->create([
-            'lead_care_manager' => $careManagers->first()->id,
+            'lead_care_manager' => $careManager->id,
         ]);
 
         foreach ($members as $member) {
             // Each member gets 1-3 problems in various states
             $addedProblems = Problem::factory(rand(1, 2))
                 ->for($member)
-                ->create(['submitted_by' => $testUser->id]);
+                ->create(['submitted_by' => $careManager->id]);
 
             $confirmedProblems = Problem::factory(rand(1, 2))
                 ->confirmed()
                 ->for($member)
                 ->create([
-                    'submitted_by' => $testUser->id,
-                    'confirmed_by' => $careManagers->random()->id,
+                    'submitted_by' => $careManager->id,
+                    'confirmed_by' => $supervisor->id,
                 ]);
 
             // Some members have resolved problems
@@ -62,9 +75,9 @@ class DatabaseSeeder extends Seeder
                     ->resolved()
                     ->for($member)
                     ->create([
-                        'submitted_by' => $testUser->id,
-                        'confirmed_by' => $careManagers->random()->id,
-                        'resolved_by' => $careManagers->random()->id,
+                        'submitted_by' => $careManager->id,
+                        'confirmed_by' => $supervisor->id,
+                        'resolved_by' => $clinician->id,
                     ]);
             }
 
@@ -72,21 +85,21 @@ class DatabaseSeeder extends Seeder
             foreach ($confirmedProblems as $problem) {
                 Task::factory(rand(1, 3))
                     ->for($problem)
-                    ->create(['submitted_by' => $testUser->id]);
+                    ->create(['submitted_by' => $careManager->id]);
 
                 // Some started tasks with resources
                 $startedTasks = Task::factory(rand(0, 2))
                     ->started()
                     ->for($problem)
                     ->create([
-                        'submitted_by' => $testUser->id,
-                        'started_by' => $careManagers->random()->id,
+                        'submitted_by' => $careManager->id,
+                        'started_by' => $supervisor->id,
                     ]);
 
                 foreach ($startedTasks as $task) {
                     Resource::factory(rand(1, 2))->create([
                         'task_id' => $task->id,
-                        'submitted_by' => $careManagers->random()->id,
+                        'submitted_by' => $careStaff->random()->id,
                     ]);
                 }
 
@@ -96,9 +109,9 @@ class DatabaseSeeder extends Seeder
                         ->completed()
                         ->for($problem)
                         ->create([
-                            'submitted_by' => $testUser->id,
-                            'started_by' => $careManagers->random()->id,
-                            'completed_by' => $careManagers->random()->id,
+                            'submitted_by' => $careManager->id,
+                            'started_by' => $supervisor->id,
+                            'completed_by' => $clinician->id,
                         ]);
                 }
 
@@ -106,13 +119,13 @@ class DatabaseSeeder extends Seeder
                 Task::factory()
                     ->goal()
                     ->for($problem)
-                    ->create(['submitted_by' => $testUser->id]);
+                    ->create(['submitted_by' => $careManager->id]);
 
                 // Add notes to problems
                 Note::factory(rand(1, 3))->create([
                     'notable_type' => Problem::class,
                     'notable_id' => $problem->id,
-                    'created_by' => $careManagers->random()->id,
+                    'created_by' => $careStaff->random()->id,
                 ]);
             }
         }
