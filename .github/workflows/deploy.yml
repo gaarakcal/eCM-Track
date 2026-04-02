@@ -33,6 +33,12 @@ jobs:
 
       - name: Set permissions
         run: |
+          mkdir -p /var/www/ecm-staging/storage/app/public
+          mkdir -p /var/www/ecm-staging/storage/framework/cache
+          mkdir -p /var/www/ecm-staging/storage/framework/sessions
+          mkdir -p /var/www/ecm-staging/storage/framework/views
+          mkdir -p /var/www/ecm-staging/storage/logs
+          mkdir -p /var/www/ecm-staging/bootstrap/cache
           sudo chown -R ubuntu:www-data /var/www/ecm-staging
           sudo chmod -R 775 /var/www/ecm-staging/storage
           sudo chmod -R 775 /var/www/ecm-staging/bootstrap/cache
