@@ -50,4 +50,4 @@ jobs:
           php artisan view:cache
 
       - name: Restart PHP-FPM
-        run: sudo systemctl restart php8.3-fpm
+        run: sudo systemctl restart php8.4-fpm
