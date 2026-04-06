@@ -42,6 +42,10 @@ jobs:
           sudo chown -R ubuntu:www-data /var/www/ecm-staging
           sudo chmod -R 775 /var/www/ecm-staging/storage
           sudo chmod -R 775 /var/www/ecm-staging/bootstrap/cache
+          sudo chmod 775 /var/www/ecm-staging/database
+          touch /var/www/ecm-staging/database/database.sqlite
+          sudo chown ubuntu:www-data /var/www/ecm-staging/database/database.sqlite
+          sudo chmod 664 /var/www/ecm-staging/database/database.sqlite
 
       - name: Run migrations
         run: |
