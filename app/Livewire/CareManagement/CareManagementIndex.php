@@ -1259,13 +1259,25 @@ class CareManagementIndex extends Component
 
     public function saveNote(): void
     {
+        // CM-AUD-001 AC#4: Role gate — only CM staff can add notes
+        $user = auth()->user();
+        if (! $user->role || ! $user->role->canAddNote()) {
+            session()->flash('error', 'You do not have permission to add notes.');
+
+            return;
+        }
+
         $this->validate([
             'noteContent' => 'required|string|min:1',
-            'noteEntityType' => 'required|string|in:problem,task',
+            'noteEntityType' => 'required|string|in:problem,task,resource',
             'noteEntityId' => 'required|integer',
         ]);
 
-        $modelClass = $this->noteEntityType === 'problem' ? Problem::class : Task::class;
+        $modelClass = match ($this->noteEntityType) {
+            'problem' => Problem::class,
+            'task' => Task::class,
+            'resource' => Resource::class,
+        };
         $entity = $modelClass::findOrFail($this->noteEntityId);
 
         $note = Note::create([
@@ -1288,7 +1300,11 @@ class CareManagementIndex extends Component
 
         // Send notification if notify checkbox was checked
         if ($this->noteNotify) {
-            $member = $entity instanceof Problem ? $entity->member : $entity->problem->member;
+            $member = match (true) {
+                $entity instanceof Problem => $entity->member,
+                $entity instanceof Task => $entity->problem->member,
+                $entity instanceof Resource => $entity->task->problem->member,
+            };
             app(NotificationService::class)->notifyLeadCareManager(
                 $member, NotificationEventType::NoteAdded, new NoteAddedNotification($note)
             );
@@ -1526,10 +1542,13 @@ class CareManagementIndex extends Component
 
     public bool $consentOverrideActive = false;
 
+    public bool $isDeIdentified = false;
+
     public function mount(Member $member): void
     {
         $this->member = $member;
         $this->initLockTimeout();
+        $this->isDeIdentified = auth()->user()->role?->requiresDeIdentification() ?? false;
         $this->refreshConsentState();
 
         // Audit blocked access attempts (CM-ACC-001 AC#6)

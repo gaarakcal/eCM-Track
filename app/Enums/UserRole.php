@@ -141,4 +141,14 @@ enum UserRole: string
     {
         return $this === self::ComplianceOfficer;
     }
+
+    public function isComplianceOfficer(): bool
+    {
+        return $this === self::ComplianceOfficer;
+    }
+
+    public function requiresDeIdentification(): bool
+    {
+        return $this === self::ComplianceOfficer;
+    }
 }

@@ -105,13 +105,28 @@
     </div>
     @endif
 
+    {{-- CM-PROB-005 AC#7 / CM-CP-004 AC#7: Compliance De-Identification --}}
+    @if($isDeIdentified)
+    <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg px-4 py-3 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-purple-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+        <span class="text-sm font-medium text-purple-700 dark:text-purple-300">De-Identified View — PHI fields are hidden for compliance review. Only de-identified data is shown.</span>
+    </div>
+    @endif
+
     <!-- Member Header Bar -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow px-6 py-4 mb-6 flex flex-wrap items-center gap-4">
         <div class="flex items-center gap-4">
+            @if($isDeIdentified)
+            <span class="font-semibold text-gray-900 dark:text-white whitespace-nowrap">Member #{{ $member->member_id }}</span>
+            <span class="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap">[DOB Hidden]</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $member->member_id }}</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $member->organization }}</span>
+            @else
             <span class="font-semibold text-gray-900 dark:text-white whitespace-nowrap">{{ $member->name }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $member->dob->format('m-d-Y') }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $member->member_id }}</span>
             <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $member->organization }}</span>
+            @endif
         </div>
         <div class="ml-auto flex flex-wrap gap-2">
             @php $consentDisabled = $cmModuleBlocked && !$consentOverrideActive; @endphp
@@ -270,13 +285,32 @@
                     </select>
                 </div>
 
+                {{-- CM-CP-001 AC#3: Completion Indicator --}}
+                @if($selectedCarePlanId)
+                @php
+                    $cpProblems = $this->problems;
+                    $cpTotalItems = $cpProblems->count();
+                    foreach ($cpProblems as $p) { $cpTotalItems += $p->tasks->count(); }
+                    $cpCompletedItems = $cpProblems->where('state', \App\Enums\ProblemState::Resolved)->count();
+                    foreach ($cpProblems as $p) { $cpCompletedItems += $p->tasks->where('state', \App\Enums\TaskState::Completed)->count(); }
+                    $cpPercent = $cpTotalItems > 0 ? round(($cpCompletedItems / $cpTotalItems) * 100) : 0;
+                @endphp
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Completion:</span>
+                    <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 max-w-xs">
+                        <div class="bg-indigo-600 h-2.5 rounded-full transition-all" style="width: {{ $cpPercent }}%"></div>
+                    </div>
+                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ $cpPercent }}% ({{ $cpCompletedItems }}/{{ $cpTotalItems }})</span>
+                </div>
+                @endif
+
                 {{-- Care Planning Summary (CM-CP-004) --}}
                 @php $summary = $this->carePlanSummary; @endphp
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3">
                         <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Assessment</p>
                         <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $summary['assessment_type'] ?? 'None' }}</p>
-                        <p class="text-xs text-gray-400">{{ $summary['assessment_date'] ?? '—' }}</p>
+                        <p class="text-xs text-gray-400">{{ $isDeIdentified ? '[Date Hidden]' : ($summary['assessment_date'] ?? '—') }}</p>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3">
                         <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Next Reassessment</p>
@@ -543,6 +577,9 @@
                                     <td class="px-4 py-2.5 text-right">
                                         <div class="flex items-center justify-end gap-2">
                                             <button type="button" title="Click to view Resource Details" class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold bg-indigo-100 text-indigo-600 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 transition shrink-0">?</button>
+                                            @can('create', App\Models\Note::class)
+                                            <button type="button" wire:click="openAddNoteModal('resource', {{ $resource->id }})" @click="showNotesModal = true" title="Add note to resource" class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 transition shrink-0"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg></button>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
